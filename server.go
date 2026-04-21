@@ -50,10 +50,16 @@ func (s *server) start() error {
 	if err := s.httpServer.Serve(ln); !errors.Is(err, http.ErrServerClosed) {
 		return err
 	}
+	tcpAddr, ok := ln.Addr().(*net.TCPAddr)
+	if !ok {
+		return fmt.Errorf("Network port not recognized")
+	}
+	fmt.Printf("Linko is running on http://localhost:%d", tcpAddr.Port)
 	return nil
 }
 
 func (s *server) shutdown(ctx context.Context) error {
+	fmt.Printf("Linko is shutting down")
 	return s.httpServer.Shutdown(ctx)
 }
 
