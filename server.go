@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"log"
 	"errors"
 	"fmt"
 	"net"
@@ -54,12 +55,12 @@ func (s *server) start() error {
 	if !ok {
 		return fmt.Errorf("Network port not recognized")
 	}
-	fmt.Printf("Linko is running on http://localhost:%d", tcpAddr.Port)
+	log.Printf("Linko is running on http://localhost:%d", tcpAddr.Port)
 	return nil
 }
 
 func (s *server) shutdown(ctx context.Context) error {
-	fmt.Printf("Linko is shutting down")
+	log.Printf("Linko is shutting down")
 	return s.httpServer.Shutdown(ctx)
 }
 
