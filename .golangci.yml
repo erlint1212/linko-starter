@@ -1,0 +1,18 @@
+version: "2"
+
+run:
+  # Force the linter to use 1.25, bypassing the go.mod version
+  go: '1.25'
+
+linters:
+  enable:
+    - forbidigo
+
+linters-settings:
+  forbidigo:
+    # Forbid the following identifiers
+    forbid:
+      - p: ^fmt\.Print.*$
+        msg: "Do not use fmt.Print*, use your project's logger instead."
+      - p: ^panic$
+        msg: "Do not use panic. Return an error instead."
