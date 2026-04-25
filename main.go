@@ -26,7 +26,7 @@ func main() {
 }
 
 func run(ctx context.Context, cancel context.CancelFunc, httpPort int, dataDir string, logger *log.Logger) int {
-	st, err := store.New(dataDir)
+	st, err := store.New(dataDir, logger)
 	if err != nil {
 		logger.Printf("failed to create store: %v", err)
 		return 1
