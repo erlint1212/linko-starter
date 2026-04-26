@@ -24,21 +24,39 @@ func main() {
 	os.Exit(status)
 }
 
-func run(ctx context.Context, cancel context.CancelFunc, httpPort int, dataDir string) int {
-	accessLoggerFile, err := os.OpenFile("linko.access.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0666)
-	if err != nil {
-		log.Fatal(err)
+func initializeLogger() (*log.Logger, func()) {
+	logFilePath, exists := os.LookupEnv("LINKO_LOG_FILE")
+
+	if exists {
+		accessLoggerFile, err := os.OpenFile(logFilePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+		if err != nil {
+			log.Fatalf("failed to open log file: %v", err)
+		}
+
+		cleanup := func() {
+			if err := accessLoggerFile.Close(); err != nil {
+				log.Printf("error closing log file: %v", err)
+			}
+		}
+
+		return log.New(accessLoggerFile, "", log.LstdFlags), cleanup
 	}
-	accessLogger := log.New(accessLoggerFile, "INFO: ", log.LstdFlags)
 
-	standardLogger := log.New(os.Stderr, "DEBUG: ", log.LstdFlags)
+	return log.New(os.Stderr, "", log.LstdFlags), func() {}
 
-	st, err := store.New(dataDir, standardLogger)
+}
+
+func run(ctx context.Context, cancel context.CancelFunc, httpPort int, dataDir string) int {
+
+	logger, cleanup := initializeLogger()
+	defer cleanup()
+
+	st, err := store.New(dataDir, logger)
 	if err != nil {
-		standardLogger.Printf("failed to create store: %v", err)
+		logger.Printf("failed to create store: %v", err)
 		return 1
 	}
-	s := newServer(*st, httpPort, cancel, accessLogger)
+	s := newServer(*st, httpPort, cancel, logger)
 	var serverErr error
 	go func() {
 		serverErr = s.start()
@@ -49,11 +67,11 @@ func run(ctx context.Context, cancel context.CancelFunc, httpPort int, dataDir s
 	defer cancel()
 
 	if err := s.shutdown(shutdownCtx); err != nil {
-		standardLogger.Printf("failed to shutdown server: %v", err)
+		logger.Printf("failed to shutdown server: %v", err)
 		return 1
 	}
 	if serverErr != nil {
-		standardLogger.Printf("server error: %v", serverErr)
+		logger.Printf("server error: %v", serverErr)
 		return 1
 	}
 	return 0
