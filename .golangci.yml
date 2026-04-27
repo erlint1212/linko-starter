@@ -16,3 +16,7 @@ linters-settings:
         msg: "Do not use fmt.Print*, use your project's logger instead."
       - p: ^panic$
         msg: "Do not use panic. Return an error instead."
+      - p: ^log.Fatal.*$
+        msg: "Do not use log.Fatal, it makes debugging and unit testing a nightmare. Use fmt.Fprintf and return 1."
+      - p: ^fmt.Fatal.*$
+        msg: "Do not use fmt.Fatal, it makes debugging and unit testing a nightmare. Use fmt.Fprintf and return 1."

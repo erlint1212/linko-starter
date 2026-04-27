@@ -14,6 +14,8 @@ import (
 	"boot.dev/linko/internal/store"
 )
 
+type closeFunc func()
+
 func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 
@@ -26,7 +28,7 @@ func main() {
 	os.Exit(status)
 }
 
-func initializeLogger() (*log.Logger, func(), error) {
+func initializeLogger() (*log.Logger, closeFunc, error) {
 	logFilePath, exists := os.LookupEnv("LINKO_LOG_FILE")
 
 	if exists {
@@ -38,6 +40,9 @@ func initializeLogger() (*log.Logger, func(), error) {
 		bufferedFile := bufio.NewWriterSize(multiLoggerFile, 8192)
 
 		cleanup := func() {
+			if err := bufferedFile.Flush(); err != nil {
+				log.Printf("error flushing buffer to file: %v", err)
+			}
 			if err := multiLoggerFile.Close(); err != nil {
 				log.Printf("error closing log file: %v", err)
 			}
