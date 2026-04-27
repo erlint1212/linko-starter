@@ -1,8 +1,10 @@
 package main
 
 import (
+	"bufio"
 	"context"
 	"flag"
+	"fmt"
 	"log"
 	"os"
 	"os/signal"
@@ -24,31 +26,37 @@ func main() {
 	os.Exit(status)
 }
 
-func initializeLogger() (*log.Logger, func()) {
+func initializeLogger() (*log.Logger, func(), error) {
 	logFilePath, exists := os.LookupEnv("LINKO_LOG_FILE")
 
 	if exists {
-		accessLoggerFile, err := os.OpenFile(logFilePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+		multiLoggerFile, err := os.OpenFile(logFilePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 		if err != nil {
-			log.Fatalf("failed to open log file: %v", err)
+			return nil, func() {}, fmt.Errorf("failed to open log file: %v", err)
 		}
 
+		bufferedFile := bufio.NewWriterSize(multiLoggerFile, 8192)
+
 		cleanup := func() {
-			if err := accessLoggerFile.Close(); err != nil {
+			if err := multiLoggerFile.Close(); err != nil {
 				log.Printf("error closing log file: %v", err)
 			}
 		}
 
-		return log.New(accessLoggerFile, "", log.LstdFlags), cleanup
+		return log.New(bufferedFile, "", log.LstdFlags), cleanup, nil
 	}
 
-	return log.New(os.Stderr, "", log.LstdFlags), func() {}
+	return log.New(os.Stderr, "", log.LstdFlags), func() {}, nil
 
 }
 
 func run(ctx context.Context, cancel context.CancelFunc, httpPort int, dataDir string) int {
 
-	logger, cleanup := initializeLogger()
+	logger, cleanup, err := initializeLogger()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "failed to initialize logger: %v\n", err)
+		return 1
+	}
 	defer cleanup()
 
 	st, err := store.New(dataDir, logger)
