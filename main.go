@@ -5,6 +5,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"log"
 	"log/slog"
 	"os"
 	"os/signal"
@@ -29,6 +30,9 @@ func main() {
 }
 
 func initializeLogger() (*slog.Logger, closeFunc, error) {
+
+	debugHandler := slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelDebug})
+
 	logFilePath, exists := os.LookupEnv("LINKO_LOG_FILE")
 
 	if exists {
@@ -41,17 +45,30 @@ func initializeLogger() (*slog.Logger, closeFunc, error) {
 
 		cleanup := func() {
 			if err := bufferedFile.Flush(); err != nil {
-				fmt.Printf("error flushing buffer to file: %v", err)
+				log.Printf("error flushing buffer to file: %v", err)
 			}
 			if err := multiLoggerFile.Close(); err != nil {
-				fmt.Printf("error closing log file: %v", err)
+				log.Printf("error closing log file: %v", err)
 			}
 		}
 
-		return slog.New(slog.NewTextHandler(bufferedFile, nil)), cleanup, nil
+		infoHandler := slog.NewTextHandler(multiLoggerFile, &slog.HandlerOptions{
+			Level: slog.LevelInfo,
+		})
+
+		logger := slog.New(slog.NewMultiHandler(
+			debugHandler,
+			infoHandler,
+		))
+
+		return logger, cleanup, nil
 	}
 
-	return slog.New(slog.NewTextHandler(os.Stderr, nil)), func() {}, nil
+	logger := slog.New(slog.NewMultiHandler(
+		debugHandler,
+	))
+
+	return logger, func() {}, nil
 
 }
 
@@ -66,7 +83,7 @@ func run(ctx context.Context, cancel context.CancelFunc, httpPort int, dataDir s
 
 	st, err := store.New(dataDir, logger)
 	if err != nil {
-		logger.Info(fmt.Sprintf("failed to create store: %v", err))
+		logger.Error(fmt.Sprintf("failed to create store: %v", err))
 		return 1
 	}
 	s := newServer(*st, httpPort, cancel, logger)
@@ -80,11 +97,11 @@ func run(ctx context.Context, cancel context.CancelFunc, httpPort int, dataDir s
 	defer cancel()
 
 	if err := s.shutdown(shutdownCtx); err != nil {
-		logger.Info(fmt.Sprintf("failed to shutdown server: %v", err))
+		logger.Debug(fmt.Sprintf("failed to shutdown server: %v", err))
 		return 1
 	}
 	if serverErr != nil {
-		logger.Info(fmt.Sprintf("server error: %v", serverErr))
+		logger.Error(fmt.Sprintf("server error: %v", serverErr))
 		return 1
 	}
 	return 0
