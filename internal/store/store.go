@@ -55,11 +55,15 @@ func (s *Store) Create(_ context.Context, long string) (string, error) {
 			}
 			return "", err
 		}
-		defer func() { 
+		defer func() {
 			filename := f.Name()
 			err := f.Close()
 			if err != nil {
-				s.logger.Info(fmt.Sprintf("failed to close file %s: %s", filename, err))
+				s.logger.Info(
+					"failed to close file",
+					slog.String("filename", filename),
+					slog.Any("error", err),
+				)
 			}
 		}()
 		_, err = f.WriteString(long)
@@ -115,7 +119,11 @@ func (s *Store) Lookup(_ context.Context, short string) (string, error) {
 		return "", ErrNotFound
 	}
 	if err != nil {
-		s.logger.Info(fmt.Sprintf("failed to read %s: %v\n", shortcodeFilepath, err))
+		s.logger.Info(
+			"failed to read",
+			slog.String("shortcodeFilepath", shortcodeFilepath),
+			slog.Any("error", err),
+		)
 		return "", err
 	}
 	return string(data), nil
