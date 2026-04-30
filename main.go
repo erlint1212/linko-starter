@@ -31,7 +31,7 @@ func main() {
 
 func initializeLogger() (*slog.Logger, closeFunc, error) {
 
-	debugHandler := slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelDebug})
+	debugHandler := slog.NewJSONHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelDebug})
 
 	logFilePath, exists := os.LookupEnv("LINKO_LOG_FILE")
 
@@ -52,7 +52,7 @@ func initializeLogger() (*slog.Logger, closeFunc, error) {
 			}
 		}
 
-		infoHandler := slog.NewTextHandler(multiLoggerFile, &slog.HandlerOptions{
+		infoHandler := slog.NewJSONHandler(multiLoggerFile, &slog.HandlerOptions{
 			Level: slog.LevelInfo,
 		})
 
