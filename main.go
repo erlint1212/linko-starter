@@ -29,9 +29,23 @@ func main() {
 	os.Exit(status)
 }
 
+func replaceAttr(groups []string, a slog.Attr) slog.Attr {
+	if a.Key == "error" {
+		err, ok := a.Value.Any().(error)
+		if !ok {
+			return a
+		}
+		return slog.String("error", fmt.Sprintf("%+v", err))
+	}
+	return a
+}
+
 func initializeLogger() (*slog.Logger, closeFunc, error) {
 
-	debugHandler := slog.NewJSONHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelDebug})
+	debugHandler := slog.NewJSONHandler(os.Stderr, &slog.HandlerOptions{
+		Level:       slog.LevelDebug,
+		ReplaceAttr: replaceAttr,
+	})
 
 	logFilePath, exists := os.LookupEnv("LINKO_LOG_FILE")
 
@@ -53,7 +67,8 @@ func initializeLogger() (*slog.Logger, closeFunc, error) {
 		}
 
 		infoHandler := slog.NewJSONHandler(multiLoggerFile, &slog.HandlerOptions{
-			Level: slog.LevelInfo,
+			Level:       slog.LevelInfo,
+			ReplaceAttr: replaceAttr,
 		})
 
 		logger := slog.New(slog.NewMultiHandler(
