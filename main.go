@@ -13,6 +13,7 @@ import (
 	"syscall"
 	"time"
 
+	"boot.dev/linko/internal/build"
 	"boot.dev/linko/internal/linkoerr"
 	"boot.dev/linko/internal/store"
 	pkgerr "github.com/pkg/errors"
@@ -51,7 +52,6 @@ func errorAttrs(err error) []slog.Attr {
 		attrs = append(attrs, slog.String("stack_trace", fmt.Sprintf("%+v", stackErr.StackTrace())))
 	}
 
-
 	customAttrs := linkoerr.Attrs(err)
 
 	if len(customAttrs) > 0 {
@@ -68,7 +68,6 @@ func replaceAttr(groups []string, a slog.Attr) slog.Attr {
 			return a
 		}
 
-
 		multiErr, meOk := errors.AsType[multiError](err)
 		if meOk {
 			var attrs []slog.Attr
@@ -79,7 +78,7 @@ func replaceAttr(groups []string, a slog.Attr) slog.Attr {
 			}
 
 			return slog.GroupAttrs("errors", attrs...)
-		} 
+		}
 
 		errExtra := errorAttrs(err)
 
@@ -87,6 +86,25 @@ func replaceAttr(groups []string, a slog.Attr) slog.Attr {
 
 	}
 	return a
+}
+
+func helperLoggerWith(logger *slog.Logger) *slog.Logger {
+	hostname, err := os.Hostname()
+	if err != nil {
+		log.Println("failed to get hostname: ", err)
+		hostname = "unknown"
+	}
+
+	env := os.Getenv("ENV")
+
+	logger = logger.With(
+		slog.String("git_sha", build.GitSHA),
+		slog.String("build_time", build.BuildTime),
+		slog.String("hostname", hostname),
+		slog.String("env", env),
+	)
+
+	return logger
 }
 
 func initializeLogger() (*slog.Logger, closeFunc, error) {
@@ -125,12 +143,17 @@ func initializeLogger() (*slog.Logger, closeFunc, error) {
 			infoHandler,
 		))
 
+		logger = helperLoggerWith(logger)
+
+
 		return logger, cleanup, nil
 	}
 
 	logger := slog.New(slog.NewMultiHandler(
 		debugHandler,
 	))
+
+	logger = helperLoggerWith(logger)
 
 	return logger, func() {}, nil
 
